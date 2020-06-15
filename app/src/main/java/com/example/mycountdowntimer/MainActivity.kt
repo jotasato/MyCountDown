@@ -1,11 +1,20 @@
 package com.example.mycountdowntimer
 
+import android.media.AudioAttributes
+import android.media.AudioManager
+import android.media.SoundPool
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.CountDownTimer
 import kotlinx.android.synthetic.main.activity_main.*
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity()  {
+
+    //SoundPoolクラスのインスタンスとサウンドファイルのリソースIDを保持するプロパティを宣言している。
+    //soundPoolは後で初期化するので、lateinit修飾子をつける必要がある。
+    private lateinit var soundPool: SoundPool
+    private var soundResId = 0
 
     //MainActicityの中に、CountDownTimerを継承したMyCountDownTimerクラスを作っている。
     //インナークラスになっており、外部の変数、ここではレイアウトに配置されたビューのID名を参照できる。
@@ -34,6 +43,8 @@ class MainActivity : AppCompatActivity() {
         override fun onFinish() {
             //TextViewに0:00を表示
             timerText.text = "0:00"
+            soundPool.play(soundResId, 1.0f, 100f, 0, 0, 1.0f)
+
         }
     }
 
@@ -71,4 +82,36 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
- }
+
+    override fun onResume() {
+        super.onResume()
+        //アクティビティが画面に表示された時に実行されるonResumeメソッド内で、SoundPoolのインスタンスを作成する。
+        //SoundPoolクラスの今コンストラクタでmaxStreamsは同時に再生することのできる音源数,
+        //streamTypeはオーディオのストリームタイプを指定、srcQualityhは品質を指定します。
+        //第2引数のストリームタイプはAudioManagerクラスに定義された定数で指定。STREAM_ALARMはアラーム音のためのストリーム
+        soundPool = if(Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+            //@Suppress("DEPRECATION")非推奨のメソッドを使っているが、対応済みなので検査不要ということを明示している。
+            @Suppress("DEPRECATION")
+            SoundPool(2, AudioManager.STREAM_ALARM, 0)
+        } else {
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .build()
+            SoundPool.Builder()
+                .setMaxStreams(1)
+                .setAudioAttributes(audioAttributes)
+                .build()
+        }
+        //loadメソッドで、リソースからサウンドファイルを読み込む
+        //第1引数でアクティビティを指定、第2引数でサウンドファイルのリソースId,proorityは音の優先順位だが、気にしなくていい。
+        soundResId = soundPool.load(this, R.raw.bellsound, 1)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        //アクティビティが非表示になった時に呼ばれるonPause内で、releaseメソッドを使ってメモリの解放をしている。
+        soundPool.release()
+    }
+
+
+}
